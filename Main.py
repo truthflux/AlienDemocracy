@@ -4,10 +4,6 @@ import libtcodpy as libtcod
 import random
 
 # palette
-color_dark_wall = libtcod.Color(0, 0, 100)
-color_light_wall = libtcod.Color(130, 110, 50)
-color_dark_ground = libtcod.Color(50, 50, 150)
-color_light_ground = libtcod.Color(200, 180, 50)
 
 #create the list of game messages and their colors, starts empty
 game_msgs = []
