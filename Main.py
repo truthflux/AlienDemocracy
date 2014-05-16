@@ -179,7 +179,9 @@ class Government:
 
 class Populous:
     def __init__(self):
-        print("test")
+        self.population = random.randint(INITIAL_POP_MIN,INITIAL_POP_MAX)
+        world_name = 'Zog'
+        message('%s has %s citizens') % (world_name, self.population)
         #TODO add init
 
     def simulate(self):
@@ -201,6 +203,8 @@ initialise_io()
 message('Welcome!', libtcod.red)
 
 # Main game loop
+
+populous = new Populous
 
 while not libtcod.console_is_window_closed():
 
