@@ -1,8 +1,5 @@
-import random
-
 # Screen mode
-
-SCREEN_WIDTH = 80
+SCREEN_WIDTH = 90
 SCREEN_HEIGHT = 50
 
 #sizes and coordinates relevant for the GUI
@@ -20,9 +17,12 @@ PANE_NUMBER = 2
 INITIAL_POP_MIN = 1e6
 INITIAL_POP_MAX = 1e7
 
+# Time & space
+DAY_LENGTH = 200
+
 
 # Set FPS limit
-LIMIT_FPS = 10
+LIMIT_FPS = 20
 
 # Debug mode
 DEBUG = True
