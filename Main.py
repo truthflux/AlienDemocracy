@@ -1,6 +1,7 @@
 import textwrap
 from config import *
 import libtcodpy as libtcod
+import random
 
 # palette
 color_dark_wall = libtcod.Color(0, 0, 100)
@@ -13,7 +14,7 @@ game_msgs = []
 game_state = 'playing'
 
 #start game time at 0
-time = 0
+ticks = 0
 
 ################################################################################
 #Input
@@ -54,27 +55,27 @@ def handle_input():
 
     if game_state == 'playing':
         # respond to movement keys
-        if libtcod.console_is_key_pressed(libtcod.KEY_UP):
+        if key.vk == libtcod.KEY_UP:
             return 'up'
-        elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
+        elif key.vk == libtcod.KEY_DOWN:
             return 'down'
 
-        elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
-            return 'left'
+        elif key.vk == libtcod.KEY_LEFT:
+            window.activate_pane("-")
 
-        elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
-            return 'right'
+        elif key.vk == libtcod.KEY_RIGHT:
+            window.activate_pane("+")
 
-        elif libtcod.console_is_key_pressed(libtcod.KEY_SPACE):
+        elif key.vk == libtcod.KEY_SPACE:
             game_state = 'paused'
-            message('Game Paused')
+            message('Game Paused', libtcod.purple)
 
         else:
             return 'no action'
     elif game_state == 'paused':
-        if libtcod.console_is_key_pressed(libtcod.KEY_SPACE):
+        if key.vk == libtcod.KEY_SPACE:
             game_state = 'playing'
-            message('Game Unpaused')
+            message('Game Unpaused', libtcod.purple)
 
 
 ################################################################################
@@ -82,27 +83,25 @@ def handle_input():
 ################################################################################
 
 class Panel(object):
-    def __init__(self, x, y, x_width, y_width):
+    """Class for all main GUI panels"""
+
+    def __init__(self, x, y, width, height):
         self.x = x
         self.y = y
-        self.x_width = x_width
-        self.y_width = y_width
+        self.width = width
+        self.height = height
 
-        self._console = libtcod.console_new(self.x_width, self.y_width)
+        self._console = libtcod.console_new(self.width, self.height)
+        libtcod.console_set_default_background(self._console, libtcod.black)
 
     def blit(self):
-        libtcod.console_blit(self._console, 0, 0, self.x_width, self.y_width, 0, self.x, self.y)
+        libtcod.console_blit(self._console, 0, 0, self.width, self.height, 0, self.x, self.y)
 
     def _render_elements(self):
         pass
 
     def render(self):
         #prepare to render the panel
-        libtcod.console_set_default_background(self._console, libtcod.black)
-        libtcod.console_clear(self._console)
-
-        self._render_elements()
-
         self.blit()
 
 
@@ -110,7 +109,9 @@ class Gui(Panel):
     def __init__(self):
         super(Gui, self).__init__(0, SCREEN_HEIGHT - GUI_HEIGHT, SCREEN_WIDTH, GUI_HEIGHT)
 
-    def _render_elements(self):
+    def render(self):
+        libtcod.console_set_default_background(self._console, libtcod.black)
+        libtcod.console_clear(self._console)
         #draw labels
         libtcod.console_set_default_foreground(self._console, libtcod.light_gray)
         libtcod.console_print_ex(self._console, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, get_control_under_mouse())
@@ -118,19 +119,49 @@ class Gui(Panel):
         #show the player's stats and messages
         render_bar(self._console, 1, 1, BAR_WIDTH, 'Popularity', 50, 100,
                    libtcod.light_blue, libtcod.darker_blue)
-        render_messages(self._console)
+        self.render_messages()
+
+        super(Gui, self).render()
+
+    def render_messages(self):
+        #print the game messages, one line at a time
+        y = 1
+        for (line, color) in game_msgs:
+            libtcod.console_set_default_foreground(self._console, color)
+            libtcod.console_print_ex(self._console, MSG_X, y, libtcod.BKGND_NONE, libtcod.LEFT, line)
+            y += 1
 
 
 class Pane(Panel):
-    def __init__(self, pane_index):
+    def __init__(self, pane_index, title, active=False):
         self.pane_index = pane_index
+        self.title = title
+        self.active = active
         super(Pane, self).__init__(pane_index * (SCREEN_WIDTH // PANE_NUMBER), 0, SCREEN_WIDTH // PANE_NUMBER,
                                    SCREEN_HEIGHT - GUI_HEIGHT)
+        self._render_frame()
 
-    def _render_elements(self):
-        #draw labels
+    def render(self):
+        super(Pane, self).render()
+
+    def _render_frame(self):
+        """Renders the initial frame and title"""
+        if self.active:
+            libtcod.console_set_default_foreground(self._console, libtcod.dark_blue)
+        else:
+            libtcod.console_set_default_foreground(self._console, libtcod.darker_blue)
+
+        libtcod.console_print_frame(self._console, 0, 0, self.width, self.height, False)
         libtcod.console_set_default_foreground(self._console, libtcod.light_gray)
-        libtcod.console_print_ex(self._console, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, 'Test Pane')
+        libtcod.console_print_ex(self._console, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, self.title)
+
+    def activate(self):
+        self.active = True
+        self._render_frame()
+
+    def deactivate(self):
+        self.active = False
+        self._render_frame()
 
 
 class Window(object):
@@ -150,7 +181,10 @@ class Window(object):
         # create panels on left
         self.panes = []
         for i in range(PANE_NUMBER):
-            self.panes.append(Pane(i))
+            self.panes.append(Pane(i, "Menu " + str(i + 1)))
+
+        self.active_pane = 0
+        self.panes[self.active_pane].activate()
 
     def render(self):
         # render panes and gui
@@ -161,6 +195,16 @@ class Window(object):
 
         #flush console
         libtcod.console_flush()
+
+    def activate_pane(self, pane_id):
+        if pane_id == '+':
+            pane_id = min(self.active_pane + 1, PANE_NUMBER - 1)
+        elif pane_id == '-':
+            pane_id = max(self.active_pane - 1, 0)
+
+        self.panes[self.active_pane].deactivate()
+        self.active_pane = pane_id
+        self.panes[self.active_pane].activate()
 
 
 def render_bar(pane, x, y, total_width, name, value, maximum, bar_color, back_colour):
@@ -196,15 +240,6 @@ def message(new_msg, color=libtcod.white):
 
         #add the new line as a tuple, with the text and the color
         game_msgs.append((line, color))
-
-
-def render_messages(pane):
-    #print the game messages, one line at a time
-    y = 1
-    for (line, color) in game_msgs:
-        libtcod.console_set_default_foreground(pane, color)
-        libtcod.console_print_ex(pane, MSG_X, y, libtcod.BKGND_NONE, libtcod.LEFT, line)
-        y += 1
 
 
 def clear_all():
@@ -282,8 +317,9 @@ while not libtcod.console_is_window_closed():
 
     # if game is in play, then compute turn:
     if game_state == 'playing':
-        populous.simulate()
-        if time % 100 == 0:
-            message(populous.status_report())
+        if ticks % DAY_LENGTH == 0:
+            populous.simulate()
+            message("A new day begins", libtcod.white)
+            message(populous.status_report(), libtcod.orange)
 
-        time += 1
+        ticks += 1
