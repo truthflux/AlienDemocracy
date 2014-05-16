@@ -1,41 +1,5 @@
-import libtcodpy as libtcod
 import textwrap
-
-# Constants:
-
-SCREEN_WIDTH = 80
-SCREEN_HEIGHT = 50
-
-#sizes and coordinates relevant for the GUI
-BAR_WIDTH = 20
-PANEL_HEIGHT = 7
-PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
-
-MSG_X = BAR_WIDTH + 2
-MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
-MSG_HEIGHT = PANEL_HEIGHT - 1
-
-#create the list of game messages and their colors, starts empty
-game_msgs = []
-
-#Map constants
-MAP_WIDTH = 80
-MAP_HEIGHT = 45
-
-ROOM_MAX_SIZE = 10
-ROOM_MIN_SIZE = 6
-MAX_ROOMS = 30
-
-MAX_ROOM_MONSTERS = 3
-
-LIMIT_FPS = 20
-
-#FOV Calculations
-
-FOV_ALGO = 0  # default FOV algorithm
-FOV_LIGHT_WALLS = True
-TORCH_RADIUS = 10
-fov_recompute = True
+from config import *
 
 # palette
 
@@ -60,8 +24,8 @@ def get_objects_under_mouse():
 
     #return a string with the names of all objects under the mouse
     (x, y) = (mouse.cx, mouse.cy)
-    names = [obj.name for obj in objects
-             if obj.x == x and obj.y == y]
+    names = [ob.name for ob in objects
+             if ob.x == x and ob.y == y]
     names = ', '.join(names)  # join the names, separated by commas
     return names.capitalize()
 
@@ -70,11 +34,12 @@ def handle_input():
     global key, fov_recompute
 
     if key.vk == libtcod.KEY_ENTER and key.lalt:
-        #Alt+Enter: toggle fullscreen
+
+        #Alt+Enter: toggle full screen
         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
 
     elif key.vk == libtcod.KEY_ESCAPE:
-        return 'exit'   # exit game
+        return 'exit'  # exit game
 
     if game_state == 'playing':
         # respond to movement keys
@@ -160,8 +125,8 @@ def render_messages():
 
 
 def clear_all():
-    for obj in objects:
-        obj.clear()
+    for ob in objects:
+        ob.clear()
 
 
 def draw_all():
@@ -176,28 +141,28 @@ def draw_all():
 
         #draw map
         for y in range(MAP_HEIGHT):
-                for x in range(MAP_WIDTH):
-                    visible = libtcod.map_is_in_fov(fov_map, x, y)
-                    wall = level_map[x][y].block_sight
-                    if not visible:
-                        #if it's not visible right now, the player can only see it if it's explored
-                        if level_map[x][y].explored:
-                            #it is out of the player's FOV
-                            if wall:
-                                libtcod.console_set_char_background(buff, x, y, color_dark_wall, libtcod.BKGND_SET)
-                            else:
-                                libtcod.console_set_char_background(buff, x, y, color_dark_ground, libtcod.BKGND_SET)
-                    else:
-                        #it's visible
-                        level_map[x][y].explored = True
+            for x in range(MAP_WIDTH):
+                visible = libtcod.map_is_in_fov(fov_map, x, y)
+                wall = level_map[x][y].block_sight
+                if not visible:
+                    #if it's not visible right now, the player can only see it if it's explored
+                    if level_map[x][y].explored:
+                        #it is out of the player's FOV
                         if wall:
-                            libtcod.console_set_char_background(buff, x, y, color_light_wall, libtcod.BKGND_SET)
+                            libtcod.console_set_char_background(buff, x, y, color_dark_wall, libtcod.BKGND_SET)
                         else:
-                            libtcod.console_set_char_background(buff, x, y, color_light_ground, libtcod.BKGND_SET)
+                            libtcod.console_set_char_background(buff, x, y, color_dark_ground, libtcod.BKGND_SET)
+                else:
+                    # it's visible
+                    level_map[x][y].explored = True
+                    if wall:
+                        libtcod.console_set_char_background(buff, x, y, color_light_wall, libtcod.BKGND_SET)
+                    else:
+                        libtcod.console_set_char_background(buff, x, y, color_light_ground, libtcod.BKGND_SET)
 
         #drw objects
-        for obj in objects:
-            obj.draw()
+        for ob in objects:
+            ob.draw()
 
         libtcod.console_blit(buff, 0, 0, MAP_WIDTH, MAP_HEIGHT, 0, 0, 0)
 
@@ -219,6 +184,7 @@ def draw_all():
 
     #blit the contents of "panel" to the root console
     libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, 0, 0, PANEL_Y)
+
 
 ################################################################################
 #Maps
@@ -246,12 +212,13 @@ class Rect:
 
 class Tile:
     #a tile of the map and its properties
-    def __init__(self, blocked, block_sight = None):
+    def __init__(self, blocked, block_sight=None):
         self.blocked = blocked
         self.explored = False
 
         #by default, if a tile is blocked, it also blocks sight
-        if block_sight is None: block_sight = blocked
+        if block_sight is None:
+            block_sight = blocked
         self.block_sight = block_sight
 
 
@@ -259,9 +226,10 @@ def make_level():
     global level_map, fov_map
 
     #fill map with "blocked" tiles
-    level_map = [[Tile(True)
-                  for y in range(MAP_HEIGHT)]
-                 for x in range(MAP_WIDTH)]
+    level_map = []
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            level_map.append(Tile(True))
 
     #create two rooms and a tunnel
 
@@ -306,7 +274,7 @@ def make_level():
                 #connect it to the previous room with a tunnel
 
                 #center coordinates of previous room
-                (prev_x, prev_y) = rooms[num_rooms-1].center()
+                (prev_x, prev_y) = rooms[num_rooms - 1].center()
 
                 #draw a coin (random number that is either 0 or 1)
                 if libtcod.random_get_int(0, 0, 1) == 1:
@@ -376,6 +344,7 @@ def create_v_tunnel(y1, y2, x):
         level_map[x][y].blocked = False
         level_map[x][y].block_sight = False
 
+
 #TODO write universal tunnel creation function create_tunnel
 ################################################################################
 #Government
@@ -385,14 +354,15 @@ class Government:
         # Government creation process
         print "test"
 
+
 ################################################################################
 #Populous
 ################################################################################
 
 class Populous:
-        def __init__(self):
-            print("test")
-            #TODO add init
+    def __init__(self):
+        print("test")
+        #TODO add init
 
 
 ################################################################################
@@ -407,8 +377,8 @@ def initialise_game():
 
 
 class Object:
-    #this is a generic object: the player, a document, a car etc.
-    #it's always represented by a character on screen.
+    # this is a generic object: the player, a document, a car etc.
+    # it's always represented by a character on screen.
     def __init__(self, x, y, char, name, color, blocks=False):
         self.x = x
         self.y = y
@@ -441,9 +411,9 @@ def is_blocked(x, y):
         return True
 
     #check for blocking objects
-    for obj in objects:
-        if obj in objects:
-            if obj.blocks and obj.x == x and obj.y == y:
+    for ob in objects:
+        if ob in objects:
+            if ob.blocks and ob.x == x and ob.y == y:
                 return True
 
     return False
